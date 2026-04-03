@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>マイ家計簿</title>
+    <!-- ローカルに保存したBootstrap CSSを読み込む -->
+    <link href="{{ url_for('static', filename='bootstrap.min.css') }}" rel="stylesheet">
+</head>
+<body class="bg-light">
+
+<div class="container py-5">
+    <h1 class="mb-4 text-center">💰 マイ家計簿</h1>
+
+    <!-- 月選択フォーム -->
+    <div class="row mb-4 justify-content-center">
+        <div class="col-md-4">
+            <form action="/" method="GET" class="d-flex shadow-sm">
+                <input type="month" name="month" class="form-control me-2" value="{{ current_month }}">
+                <button type="submit" class="btn btn-primary text-nowrap">表示切替</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- 上段：残高とグラフ -->
+    <div class="row mb-4">
+        <!-- 残高表示 -->
+        <div class="col-md-6">
+            <div class="card h-100 shadow-sm border-0">
+                <div class="card-body text-center d-flex flex-column justify-content-center">
+                    <h5 class="card-title text-muted">選択月の残高</h5>
+                    <h2 class="display-4 {{ 'text-success' if total >= 0 else 'text-danger' }}">
+                        {{ "{:,}".format(total) }} 円
+                    </h2>
+                </div>
+            </div>
+        </div>
+        <!-- 支出内訳グラフ -->
+        <div class="col-md-6">
+            <div class="card h-100 shadow-sm border-0">
+                <div class="card-body">
+                    <h5 class="card-title text-muted text-center">支出の内訳</h5>
+                    <canvas id="myChart" style="max-height: 200px;"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 中段：新規登録フォーム -->
+    <div class="card mb-4 shadow-sm border-0">
+        <div class="card-body">
+            <h5 class="mb-3">新規登録</h5>
+            <form action="/add" method="POST" class="row g-2">
+                <div class="col-md-2">
+                    <input type="date" name="date" class="form-control" required>
+                </div>
+                <div class="col-md-2">
+                    <select name="category" class="form-select" required>
+                        <option value="" disabled selected>大分類</option>
+                        <option value="食費">食費</option>
+                        <option value="日用品">日用品</option>
+                        <option value="交際費">交際費</option>
+                        <option value="住居・光熱費">住居・光熱費</option>
+                        <option value="給与">給与</option>
+                        <option value="その他">その他</option>
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <input type="text" name="subcategory" class="form-control" placeholder="小分類（例：ランチ、洗剤など）">
+                </div>
+                <div class="col-md-2">
+                    <input type="number" name="amount" class="form-control" placeholder="金額" required>
+                </div>
+                <div class="col-md-2">
+                    <select name="is_income" class="form-select">
+                        <option value="0">支出</option>
+                        <option value="1">収入</option>
+                    </select>
+                </div>
+                <div class="col-md-1">
+                    <button type="submit" class="btn btn-primary w-100">登録</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- 下段：履歴一覧 -->
+    <div class="card shadow-sm border-0">
+        <div class="card-body">
+            <h5 class="mb-3">履歴一覧</h5>
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead class="table-light">
+                        <tr>
+                            <th>日付</th><th>大分類</th><th>小分類</th><th>金額</th><th>区分</th><th>操作</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for row in records %}
+                        <tr>
+                            <td>{{ row['date'] }}</td>
+                            <td>{{ row['category'] }}</td>
+                            <td class="text-muted small">{{ row['subcategory'] }}</td>
+                            <td class="{{ 'text-success' if row['is_income'] == 1 else 'text-danger' }}">
+                                {{ "▲" if row['is_income'] == 0 }}{{ "{:,}".format(row['amount']) }}円
+                            </td>
+                            <td>
+                                <span class="badge {{ 'bg-success' if row['is_income'] == 1 else 'bg-danger' }}">
+                                    {{ "収入" if row['is_income'] == 1 else "支出" }}
+                                </span>
+                            </td>
+                            <td>
+                                <a href="{{ url_for('delete', id=row['id']) }}"
+                                   class="btn btn-sm btn-outline-secondary"
+                                   onclick="return confirm('本当に削除しますか？')">削除</a>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ローカルに保存したライブラリを読み込む -->
+<script src="{{ url_for('static', filename='bootstrap.bundle.min.js') }}"></script>
+<script src="{{ url_for('static', filename='chart.umd.min.js') }}"></script>
+
+<script>
+    // グラフ描画
+    const ctx = document.getElementById('myChart').getContext('2d');
+    new Chart(ctx, {
+        type: 'pie',
+        data: {
+            labels: {{ labels|tojson }},
+            datasets: [{
+                data: {{ values|tojson }},
+                backgroundColor: [
+                    '#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0', '#9966FF', '#FF9F40'
+                ]
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { position: 'bottom' }
+            }
+        }
+    });
+</script>
+</body>
+</html>
