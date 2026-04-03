@@ -1,8 +1,11 @@
 from flask import Flask, render_template, request, redirect, url_for
 import sqlite3
 from datetime import datetime
+import os
 
 app = Flask(__name__)
+
+DATABASE = "kakeibo.db"
 
 # データベース接続用の関数
 def get_db_connection():
@@ -26,6 +29,11 @@ def init_db():
     ''')
     conn.commit()
     conn.close()
+
+# アプリ起動時の初期化処理
+with app.app_context():
+    init_db()
+
 
 # メイン画面（表示・集計）
 @app.route('/')
@@ -95,6 +103,6 @@ def delete(id):
     return redirect(url_for('index'))
 
 if __name__ == '__main__':
-    init_db()
     # debug=True にするとコードを書き換えたときに自動で再起動してくれる
     app.run(debug=True)
+
